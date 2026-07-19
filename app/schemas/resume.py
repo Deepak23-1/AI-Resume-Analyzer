@@ -11,3 +11,7 @@ class ResumeResponse(BaseModel):
 
     class  Config:
         from_attributes = True
+
+
+class JobDescriptionRequest(BaseModel):
+    job_description: str        

@@ -8,8 +8,8 @@ from app.database.database import get_db
 from app.dependencies import get_current_user
 from app.models.user import User
 from app.models.resume import Resume
-from app.schemas.resume import ResumeResponse
-from app.utils.gemini import analyze_resume
+from app.schemas.resume import ResumeResponse, JobDescriptionRequest
+from app.utils.gemini import analyze_resume, compare_resume_job
 
 
 import os
@@ -118,6 +118,42 @@ def analyze_resume_api(
     analysis = analyze_resume(resume.extracted_text)
 
     return{
+        "resume_id": resume.id,
+        "filename": resume.filename,
+        "analysis": analysis
+    }    
+
+
+
+@router.post("/match/{resume_id}")
+def match_resume(
+    resume_id: int,
+    request: JobDescriptionRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+
+    resume = (
+        db.query(Resume)
+        .filter(
+            Resume.id == resume_id,
+            Resume.user_id == current_user.id
+        )
+        .first()
+    )
+
+    if resume is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Resume not found"
+        )
+
+    analysis = compare_resume_job(
+        resume.extracted_text,
+        request.job_description
+    )
+
+    return {
         "resume_id": resume.id,
         "filename": resume.filename,
         "analysis": analysis
