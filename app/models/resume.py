@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, String, Text, ForeignKey
 from sqlalchemy.orm import relationship
+from sqlalchemy.dialects.postgresql import JSONB
 
 from app.database.database import Base
 
@@ -11,6 +12,8 @@ class Resume(Base):
     filename = Column(String, nullable=False)
     file_path = Column(String, nullable=False)
     extracted_text = Column(Text, nullable=False)
+    analysis = Column(JSONB, nullable=True)
+    analysis_status = Column(String, default="pending")
 
 
     user_id = Column(Integer, ForeignKey("users.id"))

@@ -13,6 +13,7 @@ from app.utils.gemini import analyze_resume, compare_resume_job
 
 
 import os
+import json
 import shutil
 
 router = APIRouter(
@@ -115,13 +116,47 @@ def analyze_resume_api(
             detail="Resume not found"
         )
 
-    analysis = analyze_resume(resume.extracted_text)
+    # Return existing analysis if already available
+    if resume.analysis:
+        return {
+            "resume_id": resume.id,
+            "filename": resume.filename,
+            "analysis": resume.analysis,
+            "status": resume.analysis_status,
+            "source": "database"
+        }
 
-    return{
-        "resume_id": resume.id,
-        "filename": resume.filename,
-        "analysis": analysis
-    }    
+    # Update status before starting analysis
+    resume.analysis_status = "processing"
+    db.commit()
+
+    try:
+        # Generate analysis using Gemini
+        analysis = analyze_resume(resume.extracted_text)
+
+        # Save analysis directly (JSONB column)
+        resume.analysis = analysis
+        resume.analysis_status = "completed"
+
+        db.commit()
+        db.refresh(resume)
+
+        return {
+            "resume_id": resume.id,
+            "filename": resume.filename,
+            "analysis": resume.analysis,
+            "status": resume.analysis_status,
+            "source": "gemini"
+        }
+
+    except Exception as e:
+        resume.analysis_status = "failed"
+        db.commit()
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
 
 
 
